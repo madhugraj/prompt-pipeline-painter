@@ -6,7 +6,8 @@ import {
   PipelineNode, 
   Connection, 
   Position, 
-  Pipeline 
+  Pipeline,
+  ConnectionType 
 } from '@/lib/pipeline-types';
 import PipelineCanvas from '@/components/PipelineCanvas';
 import ComponentSidebar from '@/components/ComponentSidebar';
@@ -137,7 +138,7 @@ const PipelineBuilder = () => {
       id: uuidv4(),
       source: connectionData.source,
       target: connectionData.target,
-      type: connectionData.type || 'data'
+      type: connectionData.type || ConnectionType.DATA
     };
     
     setConnections(prev => [...prev, newConnection]);
