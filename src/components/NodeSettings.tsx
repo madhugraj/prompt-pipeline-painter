@@ -46,13 +46,16 @@ const NodeSettings: React.FC<NodeSettingsProps> = ({ node, onUpdate, onDelete, o
   
   // Handle input changes
   const handleFieldChange = (fieldId: string, value: any) => {
-    onUpdate({
+    // Fix: use type assertion to ensure correct types
+    const updatedNode = {
       ...node,
       data: {
         ...node.data,
         [fieldId]: value
       }
-    });
+    } as PipelineNode;
+    
+    onUpdate(updatedNode);
   };
   
   // Handle provider selection change
@@ -75,10 +78,13 @@ const NodeSettings: React.FC<NodeSettingsProps> = ({ node, onUpdate, onDelete, o
     });
     
     // Update the node
-    onUpdate({
+    // Fix: use type assertion to ensure correct types
+    const updatedNode = {
       ...node,
       data: newData
-    });
+    } as PipelineNode;
+    
+    onUpdate(updatedNode);
   };
 
   function getProviderKey(type: ComponentType): string {
