@@ -135,13 +135,15 @@ const ComponentSidebar: React.FC<ComponentSidebarProps> = ({
       {isExpanded && (
         <>
           <div className="p-3">
-            <Input 
-              placeholder="Search components..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="border-border"
-              startAdornment={<Search className="h-4 w-4 text-muted-foreground" />}
-            />
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search components..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 border-border"
+              />
+            </div>
           </div>
           
           <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as any)} className="w-full">

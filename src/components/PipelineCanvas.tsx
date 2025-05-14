@@ -33,7 +33,7 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   const canvasRef = useRef<HTMLDivElement>(null);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
-  const [connectingFrom, setConnectingFrom] = useState<{nodeId: string, isOutput: boolean} | null>(null);
+  const [connectingFrom, setConnectingFrom] = useState<{nodeId: string, portId: string, isOutput: boolean} | null>(null);
   const [mousePosition, setMousePosition] = useState<Position>({ x: 0, y: 0 });
   const [canvasOffset, setCanvasOffset] = useState<Position>({ x: 0, y: 0 });
   const [scale, setScale] = useState<number>(1);
@@ -131,13 +131,13 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   };
 
   // Start creating a connection from a node
-  const handleConnectorMouseDown = (nodeId: string, isOutput: boolean, e: React.MouseEvent) => {
+  const handleConnectorMouseDown = (nodeId: string, portId: string, isOutput: boolean, e: React.MouseEvent) => {
     e.stopPropagation();
-    setConnectingFrom({ nodeId, isOutput });
+    setConnectingFrom({ nodeId, portId, isOutput });
   };
 
   // Finish creating a connection to a node
-  const handleConnectorMouseUp = (nodeId: string, isOutput: boolean) => {
+  const handleConnectorMouseUp = (nodeId: string, portId: string, isOutput: boolean) => {
     if (!connectingFrom) return;
     
     // Don't allow connecting to self
@@ -150,13 +150,17 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
     if (connectingFrom.isOutput && !isOutput) {
       onConnectionCreate({
         source: connectingFrom.nodeId,
+        sourceHandle: connectingFrom.portId,
         target: nodeId,
+        targetHandle: portId,
         type: ConnectionType.DATA
       });
     } else if (!connectingFrom.isOutput && isOutput) {
       onConnectionCreate({
         source: nodeId,
+        sourceHandle: portId,
         target: connectingFrom.nodeId,
+        targetHandle: connectingFrom.portId,
         type: ConnectionType.DATA
       });
     }
@@ -211,6 +215,8 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
               connection={connection}
               nodes={nodes}
               animated={true}
+              onDelete={onConnectionDelete}
+              selected={false}
             />
           ))}
           

@@ -1,14 +1,16 @@
 
 import React from 'react';
-import { Connection, ConnectionType } from '@/lib/pipeline-types';
+import { Connection, ConnectionType, PipelineNode } from '@/lib/pipeline-types';
 import { getConnectionLabel } from '@/lib/port-configurations';
 
 interface ConnectionLineProps {
   connection: Connection;
-  sourcePosition: { x: number, y: number };
-  targetPosition: { x: number, y: number };
-  onDelete: (id: string) => void;
-  selected: boolean;
+  sourcePosition?: { x: number, y: number };
+  targetPosition?: { x: number, y: number };
+  onDelete?: (id: string) => void;
+  selected?: boolean;
+  nodes?: PipelineNode[]; // Add nodes prop
+  animated?: boolean; // Add animated prop
 }
 
 const getConnectionColor = (type: ConnectionType): string => {
@@ -28,11 +30,40 @@ const getConnectionColor = (type: ConnectionType): string => {
 
 const ConnectionLine: React.FC<ConnectionLineProps> = ({
   connection,
-  sourcePosition,
-  targetPosition,
+  sourcePosition: passedSourcePosition,
+  targetPosition: passedTargetPosition,
   onDelete,
-  selected
+  selected = false,
+  nodes = [], // Add default value
+  animated = false // Add default value
 }) => {
+  // Use passed positions or calculate them from nodes
+  let sourcePosition = passedSourcePosition;
+  let targetPosition = passedTargetPosition;
+  
+  // If positions aren't provided directly and nodes are, calculate positions from nodes
+  if (!sourcePosition || !targetPosition) {
+    const sourceNode = nodes.find(n => n.id === connection.source);
+    const targetNode = nodes.find(n => n.id === connection.target);
+    
+    if (sourceNode && targetNode) {
+      sourcePosition = {
+        x: sourceNode.position.x + 150, // Assuming output is on the right
+        y: sourceNode.position.y + 40   // Approximate middle of the node
+      };
+      
+      targetPosition = {
+        x: targetNode.position.x,       // Assuming input is on the left
+        y: targetNode.position.y + 40   // Approximate middle of the node
+      };
+    }
+  }
+  
+  // If we don't have positions, we can't render
+  if (!sourcePosition || !targetPosition) {
+    return null;
+  }
+
   const connectionColor = getConnectionColor(connection.type);
   const connectionLabel = connection.label || getConnectionLabel(connection.type);
   
@@ -50,7 +81,9 @@ const ConnectionLine: React.FC<ConnectionLineProps> = ({
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    onDelete(connection.id);
+    if (onDelete) {
+      onDelete(connection.id);
+    }
   };
   
   return (
@@ -62,7 +95,7 @@ const ConnectionLine: React.FC<ConnectionLineProps> = ({
         strokeWidth={selected ? 3 : 2}
         fill="none"
         strokeDasharray={connection.type === ConnectionType.CONTROL ? "4 2" : ""}
-        className={`connection-line ${selected ? 'selected-connection' : ''}`}
+        className={`connection-line ${selected ? 'selected-connection' : ''} ${animated ? 'animated-connection' : ''}`}
         style={{
           filter: selected ? 'drop-shadow(0 0 2px rgba(255,255,255,0.5))' : 'none',
         }}
@@ -122,7 +155,7 @@ const ConnectionLine: React.FC<ConnectionLineProps> = ({
       </g>
       
       {/* Delete button (only visible when selected) */}
-      {selected && (
+      {selected && onDelete && (
         <g transform={`translate(${midX + 40}, ${midY})`}>
           <circle
             r={8}
