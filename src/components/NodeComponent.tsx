@@ -1,14 +1,15 @@
 
 import React from 'react';
-import { ComponentType, PipelineNode } from '@/lib/pipeline-types';
+import { getDefaultPorts } from '@/lib/port-configurations';
+import { ComponentType, PipelineNode, ConnectionType, Port } from '@/lib/pipeline-types';
 import { cn } from '@/lib/utils';
 
 interface NodeComponentProps {
   node: PipelineNode;
   isSelected: boolean;
   onDragStart: (id: string, e: React.MouseEvent) => void;
-  onConnectorMouseDown: (nodeId: string, isOutput: boolean, e: React.MouseEvent) => void;
-  onConnectorMouseUp: (nodeId: string, isOutput: boolean) => void;
+  onConnectorMouseDown: (nodeId: string, portId: string, isOutput: boolean, e: React.MouseEvent) => void;
+  onConnectorMouseUp: (nodeId: string, portId: string, isOutput: boolean) => void;
   getComponentIcon: (type: ComponentType) => JSX.Element;
 }
 
@@ -80,37 +81,24 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
   const label = getLabelByType(node.type);
   const provider = getProviderText(node);
   
+  // Get default ports if not defined in the node
+  const ports = {
+    inputs: node.inputs || getDefaultPorts(node.type).inputs,
+    outputs: node.outputs || getDefaultPorts(node.type).outputs,
+  };
+  
   // Handler for dragging the node
   const handleMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDragStart(node.id, e);
   };
   
-  // Handle connection point interactions
-  const handleInputMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onConnectorMouseDown(node.id, false, e);
-  };
-  
-  const handleOutputMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onConnectorMouseDown(node.id, true, e);
-  };
-  
-  const handleInputMouseUp = () => {
-    onConnectorMouseUp(node.id, false);
-  };
-  
-  const handleOutputMouseUp = () => {
-    onConnectorMouseUp(node.id, true);
-  };
-
   return (
     <div 
       className={cn(
-        'component-node border p-3 w-64 min-h-[80px] animate-fade-in',
+        'component-node border rounded-md p-3 w-64 min-h-[80px] animate-fade-in shadow-sm',
         nodeTypeClass,
-        isSelected && 'selected'
+        isSelected && 'selected shadow-md ring-2 ring-primary/30'
       )}
       style={{ 
         position: 'absolute',
@@ -121,17 +109,49 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
       }}
       onMouseDown={handleMouseDown}
     >
-      {/* Connection Points */}
-      <div 
-        className="connector-handle input"
-        onMouseDown={handleInputMouseDown}
-        onMouseUp={handleInputMouseUp}
-      />
-      <div 
-        className="connector-handle output"
-        onMouseDown={handleOutputMouseDown}
-        onMouseUp={handleOutputMouseUp}
-      />
+      {/* Input Ports */}
+      <div className="absolute -left-3 top-0 h-full flex flex-col justify-around items-start">
+        {ports.inputs.map((port, index) => (
+          <div 
+            key={`input-${port.id}`}
+            className="relative mb-1"
+          >
+            <div 
+              className="connector-handle input w-3 h-3 rounded-full bg-blue-500 border border-blue-600 cursor-pointer hover:ring-2 hover:ring-blue-300"
+              title={port.label}
+              onMouseDown={(e) => onConnectorMouseDown(node.id, port.id, false, e)}
+              onMouseUp={() => onConnectorMouseUp(node.id, port.id, false)}
+            />
+            {isSelected && (
+              <div className="absolute -left-1 top-0 -translate-x-full whitespace-nowrap text-xs bg-background/80 px-1 rounded">
+                {port.label}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      
+      {/* Output Ports */}
+      <div className="absolute -right-3 top-0 h-full flex flex-col justify-around items-end">
+        {ports.outputs.map((port, index) => (
+          <div 
+            key={`output-${port.id}`} 
+            className="relative mb-1"
+          >
+            <div 
+              className="connector-handle output w-3 h-3 rounded-full bg-green-500 border border-green-600 cursor-pointer hover:ring-2 hover:ring-green-300"
+              title={port.label}
+              onMouseDown={(e) => onConnectorMouseDown(node.id, port.id, true, e)}
+              onMouseUp={() => onConnectorMouseUp(node.id, port.id, true)}
+            />
+            {isSelected && (
+              <div className="absolute -right-1 top-0 translate-x-full whitespace-nowrap text-xs bg-background/80 px-1 rounded">
+                {port.label}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
       
       {/* Node Content */}
       <div className="flex flex-col gap-2">
@@ -163,6 +183,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
           <div className="mt-1 text-xs bg-muted/20 rounded p-1 max-h-20 overflow-auto">
             {Object.entries(node.data)
               .filter(([key]) => key !== 'provider' && key !== 'option')
+              .slice(0, 4) // Show only first 4 properties to avoid clutter
               .map(([key, value]) => (
                 <div key={key} className="flex justify-between mb-0.5">
                   <span className="text-muted-foreground">{key}:</span>
@@ -171,6 +192,11 @@ const NodeComponent: React.FC<NodeComponentProps> = ({
                   </span>
                 </div>
               ))}
+            {Object.entries(node.data).filter(([key]) => key !== 'provider' && key !== 'option').length > 4 && (
+              <div className="text-center text-muted-foreground italic mt-1">
+                +{Object.entries(node.data).length - 6} more...
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -139,7 +140,7 @@ const ComponentSidebar: React.FC<ComponentSidebarProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="border-border"
-              prefix={<Search className="h-4 w-4 text-muted-foreground" />}
+              startAdornment={<Search className="h-4 w-4 text-muted-foreground" />}
             />
           </div>
           
