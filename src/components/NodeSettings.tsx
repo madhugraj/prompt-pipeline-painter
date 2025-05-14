@@ -32,21 +32,47 @@ const NodeSettings: React.FC<NodeSettingsProps> = ({ node, onUpdate, onDelete, o
   const category = componentCategories.find(cat => cat.type === node.type);
   if (!category) return null;
   
-  // Find the provider data based on the node data
+  // Find the provider key based on the node type
   const providerKey = getProviderKey(node.type);
   const providerOrOption = node.data[providerKey] as string;
   
-  // Find the provider configuration
+  // Find the provider configuration - case insensitive matching
   const provider = category.providers.find(p => 
-    p.id.toLowerCase() === providerOrOption.toLowerCase() || 
-    p.name.toLowerCase() === providerOrOption.toLowerCase()
+    p.id.toLowerCase() === (providerOrOption || '').toLowerCase() || 
+    p.name.toLowerCase() === (providerOrOption || '').toLowerCase()
   );
   
-  if (!provider) return null;
+  if (!provider) {
+    console.error(`Provider not found for ${node.type} with ${providerKey}=${providerOrOption}`);
+    return (
+      <div className="h-full flex flex-col bg-card border-l border-border w-80">
+        <div className="p-4 border-b border-border flex justify-between items-center">
+          <h3 className="font-medium">Node Settings</h3>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        <div className="p-4">
+          <div className="text-destructive">
+            Provider configuration not found. Please delete this node and try again.
+          </div>
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            className="w-full mt-4"
+            onClick={() => onDelete(node.id)}
+          >
+            Delete Node
+          </Button>
+        </div>
+      </div>
+    );
+  }
   
   // Handle input changes
   const handleFieldChange = (fieldId: string, value: any) => {
-    // Fix: use type assertion to ensure correct types
+    // Use type assertion to ensure correct types
     const updatedNode = {
       ...node,
       data: {
@@ -78,7 +104,6 @@ const NodeSettings: React.FC<NodeSettingsProps> = ({ node, onUpdate, onDelete, o
     });
     
     // Update the node
-    // Fix: use type assertion to ensure correct types
     const updatedNode = {
       ...node,
       data: newData
@@ -175,7 +200,7 @@ const NodeSettings: React.FC<NodeSettingsProps> = ({ node, onUpdate, onDelete, o
                 
                 {field.type === 'select' && field.options && (
                   <Select
-                    value={node.data[field.id] || field.default || ''}
+                    value={String(node.data[field.id] || field.default || '')}
                     onValueChange={(value) => handleFieldChange(field.id, value)}
                   >
                     <SelectTrigger id={field.id}>
@@ -195,11 +220,11 @@ const NodeSettings: React.FC<NodeSettingsProps> = ({ node, onUpdate, onDelete, o
                   <div className="flex items-center space-x-2">
                     <Switch
                       id={field.id}
-                      checked={node.data[field.id] || field.default || false}
+                      checked={Boolean(node.data[field.id] ?? field.default ?? false)}
                       onCheckedChange={(checked) => handleFieldChange(field.id, checked)}
                     />
                     <Label htmlFor={field.id}>
-                      {node.data[field.id] ? 'Enabled' : 'Disabled'}
+                      {Boolean(node.data[field.id] ?? field.default ?? false) ? 'Enabled' : 'Disabled'}
                     </Label>
                   </div>
                 )}
@@ -220,7 +245,7 @@ const NodeSettings: React.FC<NodeSettingsProps> = ({ node, onUpdate, onDelete, o
                     </div>
                     <Slider
                       id={field.id}
-                      value={[node.data[field.id] || field.default || 0]}
+                      value={[Number(node.data[field.id] ?? field.default ?? 0)]}
                       min={field.min || 0}
                       max={field.max || 1}
                       step={field.step || 0.1}

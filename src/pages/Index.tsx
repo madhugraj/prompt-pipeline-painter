@@ -194,7 +194,10 @@ const PipelineBuilder = () => {
     
     // Check if connection already exists
     const connectionExists = connections.some(
-      conn => conn.source === connectionData.source && conn.target === connectionData.target
+      conn => conn.source === connectionData.source && 
+             conn.target === connectionData.target &&
+             conn.sourceHandle === connectionData.sourceHandle &&
+             conn.targetHandle === connectionData.targetHandle
     );
     
     if (connectionExists) {
@@ -210,15 +213,33 @@ const PipelineBuilder = () => {
       id: uuidv4(),
       source: connectionData.source,
       target: connectionData.target,
+      sourceHandle: connectionData.sourceHandle,
+      targetHandle: connectionData.targetHandle,
       type: connectionData.type || ConnectionType.DATA
     };
     
     setConnections(prev => [...prev, newConnection]);
+    
+    toast({
+      title: "Connection created",
+      description: "Nodes have been connected successfully"
+    });
   };
   
   // Delete a connection
   const handleConnectionDelete = (connectionId: string) => {
     setConnections(prev => prev.filter(conn => conn.id !== connectionId));
+    
+    toast({
+      title: "Connection deleted",
+      description: "The connection has been removed"
+    });
+  };
+  
+  // Handle node selection
+  const handleNodeSelect = (nodeId: string | null) => {
+    console.log("Node selected:", nodeId);
+    setSelectedNodeId(nodeId);
   };
   
   // Save the current pipeline
@@ -376,7 +397,7 @@ const PipelineBuilder = () => {
             connections={connections}
             onNodeAdd={handleNodeAdd}
             onNodeUpdate={handleNodeUpdate}
-            onNodeSelect={setSelectedNodeId}
+            onNodeSelect={handleNodeSelect}
             onNodeDelete={handleNodeDelete}
             onConnectionCreate={handleConnectionCreate}
             onConnectionDelete={handleConnectionDelete}

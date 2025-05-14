@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   const [mousePosition, setMousePosition] = useState<Position>({ x: 0, y: 0 });
   const [canvasOffset, setCanvasOffset] = useState<Position>({ x: 0, y: 0 });
   const [scale, setScale] = useState<number>(1);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   const getComponentIcon = (type: ComponentType) => {
     switch (type) {
@@ -83,6 +85,7 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
     setMousePosition(mousePos);
     
     if (draggingNodeId) {
+      setIsDragging(true);
       const node = nodes.find(n => n.id === draggingNodeId);
       if (node) {
         const newPosition = {
@@ -102,6 +105,9 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   const handleNodeDragStart = (nodeId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // First select the node
+    onNodeSelect(nodeId);
+    
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
     
@@ -116,16 +122,22 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
       x: mousePos.x - node.position.x,
       y: mousePos.y - node.position.y
     });
-    
-    onNodeSelect(nodeId);
   };
 
   // Stop dragging a node
   const handleMouseUp = () => {
+    // If we were just dragging, don't trigger a click on the canvas
+    const wasDragging = isDragging;
     setDraggingNodeId(null);
+    setIsDragging(false);
     
     if (connectingFrom) {
       setConnectingFrom(null);
+    }
+    
+    // Only deselect if we weren't dragging
+    if (!wasDragging && !connectingFrom) {
+      onNodeSelect(null);
     }
   };
 
@@ -168,8 +180,11 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   };
   
   // Handle click on the canvas background
-  const handleCanvasClick = () => {
-    onNodeSelect(null);
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    // Only deselect if we're not currently connecting or dragging
+    if (!connectingFrom && !isDragging) {
+      onNodeSelect(null);
+    }
   };
   
   // Handle zoom with mouse wheel
@@ -180,6 +195,30 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
       const newScale = prevScale * delta;
       return Math.min(Math.max(0.1, newScale), 2);
     });
+  };
+
+  // Find the correct node connection points for drawing lines
+  const getPortPosition = (nodeId: string, portId: string, isOutput: boolean): Position | null => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return null;
+    
+    // Basic positioning logic - in a real app, you'd calculate this more precisely
+    const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+    if (!nodeElement) return null;
+    
+    const nodeRect = nodeElement.getBoundingClientRect();
+    
+    if (isOutput) {
+      return {
+        x: node.position.x + 150,  // right side of node
+        y: node.position.y + 40    // approximation of port height
+      };
+    } else {
+      return {
+        x: node.position.x,        // left side of node
+        y: node.position.y + 40    // approximation of port height
+      };
+    }
   };
 
   return (
@@ -223,18 +262,20 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
           {connectingFrom && (
             <path
               d={`M ${
-                nodes.find(n => n.id === connectingFrom.nodeId)?.position.x ?? 0 +
-                (connectingFrom.isOutput ? 150 : 0)
+                getPortPosition(connectingFrom.nodeId, connectingFrom.portId, connectingFrom.isOutput)?.x || 0
               } ${
-                (nodes.find(n => n.id === connectingFrom.nodeId)?.position.y ?? 0) + 40
+                getPortPosition(connectingFrom.nodeId, connectingFrom.portId, connectingFrom.isOutput)?.y || 0
               } C ${
-                nodes.find(n => n.id === connectingFrom.nodeId)?.position.x ?? 0 +
-                (connectingFrom.isOutput ? 220 : -70)
+                getPortPosition(connectingFrom.nodeId, connectingFrom.portId, connectingFrom.isOutput)?.x 
+                ? (getPortPosition(connectingFrom.nodeId, connectingFrom.portId, connectingFrom.isOutput)!.x + (connectingFrom.isOutput ? 70 : -70))
+                : 0
               } ${
-                (nodes.find(n => n.id === connectingFrom.nodeId)?.position.y ?? 0) + 40
+                getPortPosition(connectingFrom.nodeId, connectingFrom.portId, connectingFrom.isOutput)?.y || 0
               }, ${mousePosition.x - 70} ${mousePosition.y}, ${mousePosition.x} ${mousePosition.y}`}
-              className="connector-path active"
+              stroke="rgba(100, 100, 255, 0.8)"
+              strokeWidth={2}
               fill="none"
+              strokeDasharray="5,5"
             />
           )}
         </svg>
