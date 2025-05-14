@@ -110,6 +110,8 @@ export interface Connection {
   id: string;
   source: string;
   target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
   type: ConnectionType;
   label?: string;
   metadata?: {
