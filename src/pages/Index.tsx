@@ -7,7 +7,15 @@ import {
   Connection, 
   Position, 
   Pipeline,
-  ConnectionType 
+  ConnectionType,
+  VectorDBNode,
+  EmbeddingNode,
+  LLMNode,
+  PromptNode,
+  RAGNode,
+  ChunkingNode,
+  FineTuningNode,
+  TemperatureNode
 } from '@/lib/pipeline-types';
 import PipelineCanvas from '@/components/PipelineCanvas';
 import ComponentSidebar from '@/components/ComponentSidebar';
@@ -48,48 +56,112 @@ const PipelineBuilder = () => {
   
   // Add a component to the canvas
   const handleAddComponent = (type: ComponentType, position: Position) => {
-    const defaultData: Record<string, any> = {};
+    let newNode: PipelineNode;
     
-    // Set default provider based on type
     switch (type) {
       case ComponentType.VECTOR_DB:
-        defaultData.provider = 'Pinecone';
+        newNode = {
+          id: uuidv4(),
+          type,
+          position,
+          data: {
+            provider: 'Pinecone'
+          }
+        } as VectorDBNode;
         break;
+        
       case ComponentType.EMBEDDING:
-        defaultData.provider = 'OpenAI';
+        newNode = {
+          id: uuidv4(),
+          type,
+          position,
+          data: {
+            provider: 'OpenAI'
+          }
+        } as EmbeddingNode;
         break;
+        
       case ComponentType.LLM:
-        defaultData.provider = 'OpenAI';
-        defaultData.model = 'gpt-3.5-turbo';
-        defaultData.temperature = 0.7;
+        newNode = {
+          id: uuidv4(),
+          type,
+          position,
+          data: {
+            provider: 'OpenAI',
+            model: 'gpt-3.5-turbo',
+            temperature: 0.7
+          }
+        } as LLMNode;
         break;
+        
       case ComponentType.PROMPT:
-        defaultData.option = 'BasicTemplates';
+        newNode = {
+          id: uuidv4(),
+          type,
+          position,
+          data: {
+            option: 'BasicTemplates'
+          }
+        } as PromptNode;
         break;
+        
       case ComponentType.RAG:
-        defaultData.option = 'BasicRAG';
+        newNode = {
+          id: uuidv4(),
+          type,
+          position,
+          data: {
+            option: 'BasicRAG'
+          }
+        } as RAGNode;
         break;
+        
       case ComponentType.CHUNKING:
-        defaultData.option = 'FixedSize';
+        newNode = {
+          id: uuidv4(),
+          type,
+          position,
+          data: {
+            option: 'FixedSize'
+          }
+        } as ChunkingNode;
         break;
+        
       case ComponentType.FINE_TUNING:
-        defaultData.option = 'LoRA';
+        newNode = {
+          id: uuidv4(),
+          type,
+          position,
+          data: {
+            option: 'LoRA'
+          }
+        } as FineTuningNode;
         break;
+        
       case ComponentType.TEMPERATURE:
-        defaultData.option = 'FixedValue';
-        defaultData.value = 0.7;
+        newNode = {
+          id: uuidv4(),
+          type,
+          position,
+          data: {
+            option: 'FixedValue',
+            value: 0.7
+          }
+        } as TemperatureNode;
         break;
+        
+      default:
+        return;
     }
-    
-    const newNode: PipelineNode = {
-      id: uuidv4(),
-      type,
-      position,
-      data: defaultData
-    };
     
     setNodes(prev => [...prev, newNode]);
     setSelectedNodeId(newNode.id);
+  };
+  
+  // Create a node object to pass to PipelineCanvas's onNodeAdd
+  const handleNodeAdd = (node: PipelineNode) => {
+    setNodes(prev => [...prev, node]);
+    setSelectedNodeId(node.id);
   };
   
   // Update a node's properties
@@ -302,7 +374,7 @@ const PipelineBuilder = () => {
           <PipelineCanvas
             nodes={nodes}
             connections={connections}
-            onNodeAdd={handleAddComponent}
+            onNodeAdd={handleNodeAdd}
             onNodeUpdate={handleNodeUpdate}
             onNodeSelect={setSelectedNodeId}
             onNodeDelete={handleNodeDelete}

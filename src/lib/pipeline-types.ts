@@ -93,11 +93,10 @@ export interface Position {
   y: number;
 }
 
+// Base interface for all node types
 export interface BaseNode {
   id: string;
-  type: ComponentType;
   position: Position;
-  data: Record<string, any>;
 }
 
 export interface Connection {
@@ -107,6 +106,7 @@ export interface Connection {
   type: ConnectionType;
 }
 
+// Type-specific node interfaces
 export interface VectorDBNode extends BaseNode {
   type: ComponentType.VECTOR_DB;
   data: {
@@ -171,6 +171,7 @@ export interface TemperatureNode extends BaseNode {
   }
 }
 
+// Union type for all node types
 export type PipelineNode = 
   | VectorDBNode
   | EmbeddingNode

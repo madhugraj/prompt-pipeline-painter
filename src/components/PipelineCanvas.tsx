@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Database, MessageCircle, Network, Move, Plus, Edit, Scissors, Settings, Thermometer } from 'lucide-react';
-import { ComponentType, PipelineNode, Connection, Position } from '@/lib/pipeline-types';
+import { ComponentType, PipelineNode, Connection, Position, ConnectionType } from '@/lib/pipeline-types';
 import NodeComponent from './NodeComponent';
 import ConnectionLine from './ConnectionLine';
 
@@ -151,13 +151,13 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
       onConnectionCreate({
         source: connectingFrom.nodeId,
         target: nodeId,
-        type: 'data'
+        type: ConnectionType.DATA
       });
     } else if (!connectingFrom.isOutput && isOutput) {
       onConnectionCreate({
         source: nodeId,
         target: connectingFrom.nodeId,
-        type: 'data'
+        type: ConnectionType.DATA
       });
     }
     

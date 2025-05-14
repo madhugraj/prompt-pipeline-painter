@@ -33,7 +33,7 @@ const NodeSettings: React.FC<NodeSettingsProps> = ({ node, onUpdate, onDelete, o
   if (!category) return null;
   
   // Find the provider data based on the node data
-  const providerKey = 'provider' in node.data ? 'provider' : 'option';
+  const providerKey = getProviderKey(node.type);
   const providerOrOption = node.data[providerKey] as string;
   
   // Find the provider configuration
@@ -62,7 +62,8 @@ const NodeSettings: React.FC<NodeSettingsProps> = ({ node, onUpdate, onDelete, o
     if (!newProvider) return;
     
     // Create a new data object with the provider
-    const newData: Record<string, any> = {
+    const newData = {
+      ...node.data,
       [providerKey]: newProvider.name
     };
     
@@ -79,6 +80,23 @@ const NodeSettings: React.FC<NodeSettingsProps> = ({ node, onUpdate, onDelete, o
       data: newData
     });
   };
+
+  function getProviderKey(type: ComponentType): string {
+    switch (type) {
+      case ComponentType.VECTOR_DB:
+      case ComponentType.EMBEDDING:
+      case ComponentType.LLM:
+        return 'provider';
+      case ComponentType.PROMPT:
+      case ComponentType.RAG:
+      case ComponentType.CHUNKING:
+      case ComponentType.FINE_TUNING:
+      case ComponentType.TEMPERATURE:
+        return 'option';
+      default:
+        return 'provider';
+    }
+  }
 
   return (
     <div className="h-full flex flex-col bg-card border-l border-border w-80">
