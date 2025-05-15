@@ -11,10 +11,13 @@ import {
   RAGOption,
   ChunkingOption,
   FineTuningOption,
-  TemperatureOption
+  TemperatureOption,
+  VectorDBProvider,
+  EmbeddingProvider,
+  LLMProvider
 } from '@/lib/pipeline-types';
 import { Button } from '@/components/ui/button';
-import { Plus, Save, Download, Upload, X } from 'lucide-react';
+import { Plus, Save, Download, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ComponentSelectionDialog from '@/components/ComponentSelectionDialog';
 import ConfigurableComponent from '@/components/ConfigurableComponent';
@@ -35,9 +38,10 @@ const SimplePipelineBuilder: React.FC = () => {
   
   const { toast } = useToast();
   
-  const handleAddComponent = (type: ComponentType, position: Position) => {
+  const handleAddComponent = (type: ComponentType) => {
     // Create a new node of the selected type
     let newNode: PipelineNode;
+    const position = { x: 0, y: 0 }; // Position doesn't matter in this UI
     
     switch (type) {
       case ComponentType.VECTOR_DB:
@@ -46,7 +50,7 @@ const SimplePipelineBuilder: React.FC = () => {
           type,
           position,
           data: {
-            provider: '',
+            provider: '' as VectorDBProvider,
             indexName: 'my-vector-index'
           }
         };
@@ -58,7 +62,7 @@ const SimplePipelineBuilder: React.FC = () => {
           type,
           position,
           data: {
-            provider: '',
+            provider: '' as EmbeddingProvider,
             dimensions: 1536
           }
         };
@@ -70,7 +74,7 @@ const SimplePipelineBuilder: React.FC = () => {
           type,
           position,
           data: {
-            provider: '',
+            provider: '' as LLMProvider,
             model: 'gpt-3.5-turbo',
             temperature: 0.7
           }
@@ -84,7 +88,6 @@ const SimplePipelineBuilder: React.FC = () => {
           position,
           data: {
             option: 'BasicTemplates' as PromptOption,
-            provider: '',
             template: 'You are a helpful assistant. {input}'
           }
         };
@@ -97,8 +100,8 @@ const SimplePipelineBuilder: React.FC = () => {
           position,
           data: {
             option: 'BasicRAG' as RAGOption,
-            provider: '',
-            retrievalMethod: 'similarity'
+            retrievalStrategy: 'similarity',
+            numResults: 3
           }
         };
         break;
@@ -110,7 +113,6 @@ const SimplePipelineBuilder: React.FC = () => {
           position,
           data: {
             option: 'FixedSize' as ChunkingOption,
-            provider: '',
             chunkSize: 1000,
             overlap: 200
           }
@@ -124,8 +126,9 @@ const SimplePipelineBuilder: React.FC = () => {
           position,
           data: {
             option: 'LoRA' as FineTuningOption,
-            provider: '',
-            trainingEpochs: 3
+            trainingEpochs: 3,
+            baseModel: 'llama-2-7b',
+            rank: 8
           }
         };
         break;
@@ -137,7 +140,6 @@ const SimplePipelineBuilder: React.FC = () => {
           position,
           data: {
             option: 'FixedValue' as TemperatureOption,
-            provider: '',
             value: 0.7
           }
         };
@@ -330,7 +332,7 @@ const SimplePipelineBuilder: React.FC = () => {
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
         onComponentSelect={(type) => {
-          handleAddComponent(type, { x: 0, y: 0 }); // Position doesn't matter in this UI
+          handleAddComponent(type);
           setIsDialogOpen(false);
         }}
       />
