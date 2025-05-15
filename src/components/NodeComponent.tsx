@@ -1,220 +1,128 @@
 
 import React from 'react';
-import { getDefaultPorts } from '@/lib/port-configurations';
-import { ComponentType, PipelineNode, ConnectionType, Port } from '@/lib/pipeline-types';
+import { ComponentType, PipelineNode } from '@/lib/pipeline-types';
 import { cn } from '@/lib/utils';
+import { Database, MessageCircle, Network, Move, Edit, Scissors, Settings, Thermometer } from 'lucide-react';
 
 interface NodeComponentProps {
   node: PipelineNode;
   isSelected: boolean;
-  onDragStart: (id: string, e: React.MouseEvent) => void;
-  onConnectorMouseDown: (nodeId: string, portId: string, isOutput: boolean, e: React.MouseEvent) => void;
-  onConnectorMouseUp: (nodeId: string, portId: string, isOutput: boolean) => void;
-  getComponentIcon: (type: ComponentType) => JSX.Element;
+  onNodeSelect: (nodeId: string) => void;
 }
-
-const getNodeClassByType = (type: ComponentType): string => {
-  switch (type) {
-    case ComponentType.VECTOR_DB:
-      return 'node-vectordb';
-    case ComponentType.EMBEDDING:
-      return 'node-embedding';
-    case ComponentType.LLM:
-      return 'node-llm';
-    case ComponentType.PROMPT:
-      return 'node-prompt';
-    case ComponentType.RAG:
-      return 'node-rag';
-    case ComponentType.CHUNKING:
-      return 'node-chunking';
-    case ComponentType.FINE_TUNING:
-      return 'node-finetuning';
-    case ComponentType.TEMPERATURE:
-      return 'node-temperature';
-    default:
-      return '';
-  }
-};
-
-const getLabelByType = (type: ComponentType): string => {
-  switch (type) {
-    case ComponentType.VECTOR_DB:
-      return 'Vector Database';
-    case ComponentType.EMBEDDING:
-      return 'Embedding Model';
-    case ComponentType.LLM:
-      return 'Language Model';
-    case ComponentType.PROMPT:
-      return 'Prompt Engineering';
-    case ComponentType.RAG:
-      return 'RAG';
-    case ComponentType.CHUNKING:
-      return 'Chunking';
-    case ComponentType.FINE_TUNING:
-      return 'Fine-Tuning';
-    case ComponentType.TEMPERATURE:
-      return 'Temperature';
-    default:
-      return 'Node';
-  }
-};
-
-const getProviderText = (node: PipelineNode): string => {
-  if ('provider' in node.data) {
-    return node.data.provider as string;
-  }
-  if ('option' in node.data) {
-    return node.data.option as string;
-  }
-  return '';
-};
 
 const NodeComponent: React.FC<NodeComponentProps> = ({ 
   node, 
-  isSelected, 
-  onDragStart, 
-  onConnectorMouseDown,
-  onConnectorMouseUp,
-  getComponentIcon 
+  isSelected,
+  onNodeSelect
 }) => {
-  const nodeTypeClass = getNodeClassByType(node.type);
-  const label = getLabelByType(node.type);
-  const provider = getProviderText(node);
-  
-  // Get default ports if not defined in the node
-  const ports = {
-    inputs: node.inputs || getDefaultPorts(node.type).inputs,
-    outputs: node.outputs || getDefaultPorts(node.type).outputs,
-  };
-  
-  // Split click from dragging
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Only handle as drag when holding the mouse button
-    if (e.button === 0) { // Left click
-      e.stopPropagation();
-      onDragStart(node.id, e);
+  const getComponentIcon = (type: ComponentType) => {
+    switch (type) {
+      case ComponentType.VECTOR_DB:
+        return <Database className="h-4 w-4" />;
+      case ComponentType.EMBEDDING:
+        return <Move className="h-4 w-4" />;
+      case ComponentType.LLM:
+        return <MessageCircle className="h-4 w-4" />;
+      case ComponentType.RAG:
+        return <Network className="h-4 w-4" />;
+      case ComponentType.PROMPT:
+        return <Edit className="h-4 w-4" />;
+      case ComponentType.CHUNKING:
+        return <Scissors className="h-4 w-4" />;
+      case ComponentType.FINE_TUNING:
+        return <Settings className="h-4 w-4" />;
+      case ComponentType.TEMPERATURE:
+        return <Thermometer className="h-4 w-4" />;
+      default:
+        return null;
     }
   };
-  
+
+  const getIconBgColor = (type: ComponentType) => {
+    switch (type) {
+      case ComponentType.VECTOR_DB:
+        return 'bg-indigo-950 text-indigo-300';
+      case ComponentType.EMBEDDING:
+        return 'bg-blue-950 text-blue-300';
+      case ComponentType.LLM:
+        return 'bg-emerald-950 text-emerald-300';
+      case ComponentType.PROMPT:
+        return 'bg-amber-950 text-amber-300';
+      case ComponentType.RAG:
+        return 'bg-violet-950 text-violet-300';
+      case ComponentType.CHUNKING:
+        return 'bg-rose-950 text-rose-300';
+      case ComponentType.FINE_TUNING:
+        return 'bg-cyan-950 text-cyan-300';
+      case ComponentType.TEMPERATURE:
+        return 'bg-orange-950 text-orange-300';
+      default:
+        return 'bg-muted';
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onNodeSelect(node.id);
+  };
+
   return (
-    <div 
+    <div
+      data-node-id={node.id}
       className={cn(
-        'component-node border rounded-md p-3 w-64 min-h-[80px] animate-fade-in shadow-sm',
-        nodeTypeClass,
-        isSelected && 'selected shadow-md ring-2 ring-primary/30'
+        "absolute bg-white border rounded-md shadow-md p-4",
+        isSelected && "border-primary shadow-lg"
       )}
-      style={{ 
-        position: 'absolute',
+      style={{
         left: `${node.position.x}px`,
         top: `${node.position.y}px`,
-        transform: isSelected ? 'scale(1.02)' : 'scale(1)',
-        transition: 'transform 0.1s ease-out',
-        cursor: 'move'
+        width: "200px",
+        zIndex: isSelected ? 10 : 5
       }}
-      onMouseDown={handleMouseDown}
+      onClick={handleClick}
     >
-      {/* Input Ports */}
-      <div className="absolute -left-3 top-0 h-full flex flex-col justify-around items-start">
-        {ports.inputs.map((port) => (
-          <div 
-            key={`input-${port.id}`}
-            className="relative mb-1"
-          >
-            <div 
-              className="connector-handle input w-3 h-3 rounded-full bg-blue-500 border border-blue-600 cursor-pointer hover:ring-2 hover:ring-blue-300"
-              title={port.label}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                onConnectorMouseDown(node.id, port.id, false, e);
-              }}
-              onMouseUp={(e) => {
-                e.stopPropagation();
-                onConnectorMouseUp(node.id, port.id, false);
-              }}
-            />
-            {isSelected && (
-              <div className="absolute -left-1 top-0 -translate-x-full whitespace-nowrap text-xs bg-background/80 px-1 rounded">
-                {port.label}
-              </div>
-            )}
-          </div>
-        ))}
+      {/* Node header */}
+      <div className="flex items-center mb-2">
+        <div className={cn("p-1 rounded-md mr-2", getIconBgColor(node.type))}>
+          {getComponentIcon(node.type)}
+        </div>
+        <div className="font-medium truncate">
+          {node.type}
+        </div>
       </div>
       
-      {/* Output Ports */}
-      <div className="absolute -right-3 top-0 h-full flex flex-col justify-around items-end">
-        {ports.outputs.map((port) => (
-          <div 
-            key={`output-${port.id}`} 
-            className="relative mb-1"
-          >
-            <div 
-              className="connector-handle output w-3 h-3 rounded-full bg-green-500 border border-green-600 cursor-pointer hover:ring-2 hover:ring-green-300"
-              title={port.label}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                onConnectorMouseDown(node.id, port.id, true, e);
-              }}
-              onMouseUp={(e) => {
-                e.stopPropagation();
-                onConnectorMouseUp(node.id, port.id, true);
-              }}
-            />
-            {isSelected && (
-              <div className="absolute -right-1 top-0 translate-x-full whitespace-nowrap text-xs bg-background/80 px-1 rounded">
-                {port.label}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      
-      {/* Node Content */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <div className={cn(
-            "p-1.5 rounded-md",
-            {
-              'bg-indigo-900/50': node.type === ComponentType.VECTOR_DB,
-              'bg-blue-900/50': node.type === ComponentType.EMBEDDING,
-              'bg-emerald-900/50': node.type === ComponentType.LLM,
-              'bg-amber-900/50': node.type === ComponentType.PROMPT,
-              'bg-violet-900/50': node.type === ComponentType.RAG,
-              'bg-rose-900/50': node.type === ComponentType.CHUNKING,
-              'bg-cyan-900/50': node.type === ComponentType.FINE_TUNING,
-              'bg-orange-900/50': node.type === ComponentType.TEMPERATURE,
-            }
-          )}>
-            {getComponentIcon(node.type)}
-          </div>
-          <div className="text-sm font-medium truncate flex-1">{label}</div>
-        </div>
+      {/* Node content - will vary by node type */}
+      <div className="text-xs text-gray-500 mb-4">
+        {node.data?.provider || 'No provider selected'}
         
-        <div className="text-xs font-semibold text-foreground/80 truncate">
-          {provider}
-        </div>
-        
-        {/* When selected, we could show a preview of the configuration */}
-        {isSelected && Object.entries(node.data).length > 1 && (
-          <div className="mt-1 text-xs bg-muted/20 rounded p-1 max-h-20 overflow-auto">
-            {Object.entries(node.data)
-              .filter(([key]) => key !== 'provider' && key !== 'option')
-              .slice(0, 4) // Show only first 4 properties to avoid clutter
-              .map(([key, value]) => (
-                <div key={key} className="flex justify-between mb-0.5">
-                  <span className="text-muted-foreground">{key}:</span>
-                  <span className="font-mono truncate max-w-[120px]">
-                    {typeof value === 'object' ? JSON.stringify(value).slice(0, 15) : String(value)}
-                  </span>
-                </div>
-              ))}
-            {Object.entries(node.data).filter(([key]) => key !== 'provider' && key !== 'option').length > 4 && (
-              <div className="text-center text-muted-foreground italic mt-1">
-                +{Object.entries(node.data).length - 6} more...
-              </div>
-            )}
+        {node.type === ComponentType.LLM && (
+          <div className="mt-1">
+            Model: {(node.data as any)?.model || 'Not specified'}
           </div>
         )}
+        
+        {node.type === ComponentType.PROMPT && (
+          <div className="mt-1 truncate">
+            Template: {(node.data as any)?.template?.substring(0, 20) || 'Not specified'}...
+          </div>
+        )}
+      </div>
+      
+      {/* Input/Output ports */}
+      <div className="relative">
+        {/* Input port on the left */}
+        <div 
+          className="absolute -left-2 top-0 w-4 h-4 rounded-full bg-blue-500 border-2 border-white"
+          style={{ top: "50%" }}
+          data-port-id="input"
+        ></div>
+        
+        {/* Output port on the right */}
+        <div 
+          className="absolute -right-2 top-0 w-4 h-4 rounded-full bg-green-500 border-2 border-white"
+          style={{ top: "50%" }}
+          data-port-id="output"
+        ></div>
       </div>
     </div>
   );

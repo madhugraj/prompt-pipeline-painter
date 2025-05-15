@@ -18,8 +18,6 @@ import {
   TemperatureNode
 } from '@/lib/pipeline-types';
 import PipelineCanvas from '@/components/PipelineCanvas';
-import ComponentSidebar from '@/components/ComponentSidebar';
-import NodeSettings from '@/components/NodeSettings';
 import { Button } from '@/components/ui/button';
 import { 
   Save, 
@@ -28,11 +26,14 @@ import {
   Play,
   AlertCircle,
   Info,
+  Plus
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import ComponentSelectionDialog from '@/components/ComponentSelectionDialog';
+import PropertyConfigurationModal from '@/components/PropertyConfigurationModal';
+import { componentCategories } from '@/lib/pipeline-data';
 
 const PipelineBuilder = () => {
-  const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [nodes, setNodes] = useState<PipelineNode[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -45,18 +46,19 @@ const PipelineBuilder = () => {
     updated: new Date().toISOString()
   });
   
-  const { toast } = useToast();
+  // Dialog states
+  const [isComponentDialogOpen, setIsComponentDialogOpen] = useState(false);
+  const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
   
-  // Create an initial sample node
-  useEffect(() => {
-    if (nodes.length === 0) {
-      handleAddComponent(ComponentType.LLM, { x: 300, y: 200 });
-    }
-  }, []);
+  const { toast } = useToast();
   
   // Add a component to the canvas
   const handleAddComponent = (type: ComponentType, position: Position) => {
     let newNode: PipelineNode;
+    
+    // Find the component category and get first provider
+    const category = componentCategories.find(cat => cat.type === type);
+    const defaultProvider = category?.providers[0]?.id || '';
     
     switch (type) {
       case ComponentType.VECTOR_DB:
@@ -65,7 +67,8 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
-            provider: 'Pinecone'
+            provider: defaultProvider,
+            indexName: 'my-vector-index'
           }
         } as VectorDBNode;
         break;
@@ -76,7 +79,8 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
-            provider: 'OpenAI'
+            provider: defaultProvider,
+            dimensions: 1536
           }
         } as EmbeddingNode;
         break;
@@ -87,7 +91,7 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
-            provider: 'OpenAI',
+            provider: defaultProvider,
             model: 'gpt-3.5-turbo',
             temperature: 0.7
           }
@@ -100,7 +104,8 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
-            option: 'BasicTemplates'
+            provider: defaultProvider,
+            template: 'You are a helpful assistant. {input}'
           }
         } as PromptNode;
         break;
@@ -111,7 +116,8 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
-            option: 'BasicRAG'
+            provider: defaultProvider,
+            retrievalMethod: 'similarity'
           }
         } as RAGNode;
         break;
@@ -122,7 +128,9 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
-            option: 'FixedSize'
+            provider: defaultProvider,
+            chunkSize: 1000,
+            overlap: 200
           }
         } as ChunkingNode;
         break;
@@ -133,7 +141,8 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
-            option: 'LoRA'
+            provider: defaultProvider,
+            trainingEpochs: 3
           }
         } as FineTuningNode;
         break;
@@ -144,7 +153,7 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
-            option: 'FixedValue',
+            provider: defaultProvider,
             value: 0.7
           }
         } as TemperatureNode;
@@ -156,12 +165,7 @@ const PipelineBuilder = () => {
     
     setNodes(prev => [...prev, newNode]);
     setSelectedNodeId(newNode.id);
-  };
-  
-  // Create a node object to pass to PipelineCanvas's onNodeAdd
-  const handleNodeAdd = (node: PipelineNode) => {
-    setNodes(prev => [...prev, node]);
-    setSelectedNodeId(node.id);
+    setIsPropertyModalOpen(true);
   };
   
   // Update a node's properties
@@ -169,6 +173,11 @@ const PipelineBuilder = () => {
     setNodes(prev => prev.map(node => 
       node.id === updatedNode.id ? updatedNode : node
     ));
+    
+    toast({
+      title: "Component updated",
+      description: "Properties have been saved successfully"
+    });
   };
   
   // Delete a node and its connections
@@ -180,11 +189,12 @@ const PipelineBuilder = () => {
     
     if (selectedNodeId === nodeId) {
       setSelectedNodeId(null);
+      setIsPropertyModalOpen(false);
     }
     
     toast({
-      title: "Node deleted",
-      description: "The node and its connections have been removed"
+      title: "Component deleted",
+      description: "The component and its connections have been removed"
     });
   };
   
@@ -203,7 +213,7 @@ const PipelineBuilder = () => {
     if (connectionExists) {
       toast({
         title: "Connection already exists",
-        description: "These nodes are already connected",
+        description: "These components are already connected",
         variant: "destructive"
       });
       return;
@@ -222,7 +232,7 @@ const PipelineBuilder = () => {
     
     toast({
       title: "Connection created",
-      description: "Nodes have been connected successfully"
+      description: "Components have been connected successfully"
     });
   };
   
@@ -238,8 +248,12 @@ const PipelineBuilder = () => {
   
   // Handle node selection
   const handleNodeSelect = (nodeId: string | null) => {
-    console.log("Node selected:", nodeId);
     setSelectedNodeId(nodeId);
+    if (nodeId) {
+      setIsPropertyModalOpen(true);
+    } else {
+      setIsPropertyModalOpen(false);
+    }
   };
   
   // Save the current pipeline
@@ -302,7 +316,7 @@ const PipelineBuilder = () => {
         
         toast({
           title: "Pipeline imported",
-          description: `Imported ${importedPipeline.name} with ${importedPipeline.nodes.length} nodes`
+          description: `Imported ${importedPipeline.name} with ${importedPipeline.nodes.length} components`
         });
       } catch (error) {
         console.error("Failed to parse pipeline JSON:", error);
@@ -382,38 +396,43 @@ const PipelineBuilder = () => {
       </header>
       
       {/* Main content */}
-      <div className="flex flex-grow overflow-hidden">
-        {/* Component sidebar */}
-        <ComponentSidebar 
-          isExpanded={sidebarExpanded}
-          onToggle={() => setSidebarExpanded(!sidebarExpanded)}
-          onAddComponent={handleAddComponent}
-        />
-        
+      <div className="flex flex-grow overflow-hidden relative">
         {/* Canvas */}
         <div className="flex-grow relative canvas-container">
           <PipelineCanvas
             nodes={nodes}
             connections={connections}
-            onNodeAdd={handleNodeAdd}
-            onNodeUpdate={handleNodeUpdate}
             onNodeSelect={handleNodeSelect}
             onNodeDelete={handleNodeDelete}
             onConnectionCreate={handleConnectionCreate}
             onConnectionDelete={handleConnectionDelete}
             selectedNodeId={selectedNodeId}
           />
+          
+          {/* Floating action button to add components */}
+          <Button 
+            className="absolute bottom-6 right-6 rounded-full w-12 h-12" 
+            onClick={() => setIsComponentDialogOpen(true)}
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
         </div>
         
-        {/* Settings panel - only shows when a node is selected */}
-        {selectedNodeId && (
-          <NodeSettings
-            node={nodes.find(node => node.id === selectedNodeId) || null}
-            onUpdate={handleNodeUpdate}
-            onDelete={handleNodeDelete}
-            onClose={() => setSelectedNodeId(null)}
-          />
-        )}
+        {/* Component selection dialog */}
+        <ComponentSelectionDialog 
+          isOpen={isComponentDialogOpen}
+          onClose={() => setIsComponentDialogOpen(false)}
+          onComponentSelect={handleAddComponent}
+        />
+        
+        {/* Property configuration modal */}
+        <PropertyConfigurationModal
+          node={nodes.find(node => node.id === selectedNodeId) || null}
+          isOpen={isPropertyModalOpen}
+          onClose={() => setIsPropertyModalOpen(false)}
+          onUpdate={handleNodeUpdate}
+          onDelete={handleNodeDelete}
+        />
       </div>
     </div>
   );

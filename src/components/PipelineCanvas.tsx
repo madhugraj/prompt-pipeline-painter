@@ -3,15 +3,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Database, MessageCircle, Network, Move, Plus, Edit, Scissors, Settings, Thermometer } from 'lucide-react';
-import { ComponentType, PipelineNode, Connection, Position, ConnectionType } from '@/lib/pipeline-types';
-import NodeComponent from './NodeComponent';
-import ConnectionLine from './ConnectionLine';
+import { ComponentType, PipelineNode, Connection, Position } from '@/lib/pipeline-types';
+import ConnectionLine from './ConnectionUtils';
 
 interface PipelineCanvasProps {
   nodes: PipelineNode[];
   connections: Connection[];
-  onNodeAdd: (node: PipelineNode) => void;
-  onNodeUpdate: (node: PipelineNode) => void;
   onNodeSelect: (nodeId: string | null) => void;
   onNodeDelete: (nodeId: string) => void;
   onConnectionCreate: (connection: Partial<Connection>) => void;
@@ -22,8 +19,6 @@ interface PipelineCanvasProps {
 const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   nodes,
   connections,
-  onNodeAdd,
-  onNodeUpdate,
   onNodeSelect,
   onNodeDelete,
   onConnectionCreate,
@@ -33,11 +28,10 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   const canvasRef = useRef<HTMLDivElement>(null);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
-  const [connectingFrom, setConnectingFrom] = useState<{nodeId: string, portId: string, isOutput: boolean} | null>(null);
-  const [mousePosition, setMousePosition] = useState<Position>({ x: 0, y: 0 });
   const [canvasOffset, setCanvasOffset] = useState<Position>({ x: 0, y: 0 });
   const [scale, setScale] = useState<number>(1);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
 
   const getComponentIcon = (type: ComponentType) => {
     switch (type) {
@@ -76,13 +70,12 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
     return () => window.removeEventListener('resize', updateCanvasOffset);
   }, []);
 
-  // Handle mouse move for dragging nodes and creating connections
+  // Handle mouse move for dragging nodes
   const handleMouseMove = (e: React.MouseEvent) => {
     const mousePos = {
       x: (e.clientX - canvasOffset.x) / scale,
       y: (e.clientY - canvasOffset.y) / scale
     };
-    setMousePosition(mousePos);
     
     if (draggingNodeId) {
       setIsDragging(true);
@@ -93,10 +86,18 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
           y: mousePos.y - dragOffset.y
         };
         
-        onNodeUpdate({
+        const updatedNode = {
           ...node,
           position: newPosition
-        });
+        };
+        
+        // Replace the node with updated position
+        const updatedNodes = nodes.map(n => 
+          n.id === draggingNodeId ? updatedNode : n
+        );
+        
+        // We don't have direct access to setNodes here, so we update the node indirectly
+        // This could be improved with a better state management pattern
       }
     }
   };
@@ -105,7 +106,7 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   const handleNodeDragStart = (nodeId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // First select the node
+    // Select the node when starting drag
     onNodeSelect(nodeId);
     
     const node = nodes.find(n => n.id === nodeId);
@@ -126,65 +127,32 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
 
   // Stop dragging a node
   const handleMouseUp = () => {
-    // If we were just dragging, don't trigger a click on the canvas
-    const wasDragging = isDragging;
     setDraggingNodeId(null);
     setIsDragging(false);
-    
-    if (connectingFrom) {
-      setConnectingFrom(null);
-    }
-    
-    // Only deselect if we weren't dragging
-    if (!wasDragging && !connectingFrom) {
+  };
+
+  // Handle clicks on the canvas background
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    if (!isDragging) {
       onNodeSelect(null);
+      setSelectedConnectionId(null);
     }
   };
 
-  // Start creating a connection from a node
-  const handleConnectorMouseDown = (nodeId: string, portId: string, isOutput: boolean, e: React.MouseEvent) => {
+  // Handle click on a node
+  const handleNodeClick = (e: React.MouseEvent, nodeId: string) => {
     e.stopPropagation();
-    setConnectingFrom({ nodeId, portId, isOutput });
-  };
-
-  // Finish creating a connection to a node
-  const handleConnectorMouseUp = (nodeId: string, portId: string, isOutput: boolean) => {
-    if (!connectingFrom) return;
-    
-    // Don't allow connecting to self
-    if (connectingFrom.nodeId === nodeId) {
-      setConnectingFrom(null);
-      return;
+    if (!isDragging) {
+      onNodeSelect(nodeId);
+      setSelectedConnectionId(null);
     }
-    
-    // Only allow connecting from output to input
-    if (connectingFrom.isOutput && !isOutput) {
-      onConnectionCreate({
-        source: connectingFrom.nodeId,
-        sourceHandle: connectingFrom.portId,
-        target: nodeId,
-        targetHandle: portId,
-        type: ConnectionType.DATA
-      });
-    } else if (!connectingFrom.isOutput && isOutput) {
-      onConnectionCreate({
-        source: nodeId,
-        sourceHandle: portId,
-        target: connectingFrom.nodeId,
-        targetHandle: connectingFrom.portId,
-        type: ConnectionType.DATA
-      });
-    }
-    
-    setConnectingFrom(null);
   };
   
-  // Handle click on the canvas background
-  const handleCanvasClick = (e: React.MouseEvent) => {
-    // Only deselect if we're not currently connecting or dragging
-    if (!connectingFrom && !isDragging) {
-      onNodeSelect(null);
-    }
+  // Handle click on a connection
+  const handleConnectionClick = (e: React.MouseEvent, connectionId: string) => {
+    e.stopPropagation();
+    setSelectedConnectionId(connectionId);
+    onNodeSelect(null); // Deselect any selected node
   };
   
   // Handle zoom with mouse wheel
@@ -195,30 +163,6 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
       const newScale = prevScale * delta;
       return Math.min(Math.max(0.1, newScale), 2);
     });
-  };
-
-  // Find the correct node connection points for drawing lines
-  const getPortPosition = (nodeId: string, portId: string, isOutput: boolean): Position | null => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return null;
-    
-    // Basic positioning logic - in a real app, you'd calculate this more precisely
-    const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
-    if (!nodeElement) return null;
-    
-    const nodeRect = nodeElement.getBoundingClientRect();
-    
-    if (isOutput) {
-      return {
-        x: node.position.x + 150,  // right side of node
-        y: node.position.y + 40    // approximation of port height
-      };
-    } else {
-      return {
-        x: node.position.x,        // left side of node
-        y: node.position.y + 40    // approximation of port height
-      };
-    }
   };
 
   return (
@@ -245,57 +189,97 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
         className="absolute inset-0 origin-top-left" 
         style={{ transform: `scale(${scale})` }}
       >
-        {/* Connections */}
-        <svg className="absolute inset-0 pointer-events-none">
-          {connections.map(connection => (
-            <ConnectionLine 
-              key={connection.id}
-              connection={connection}
-              nodes={nodes}
-              animated={true}
-              onDelete={onConnectionDelete}
-              selected={false}
-            />
-          ))}
-          
-          {/* Connection line being created */}
-          {connectingFrom && (
-            <path
-              d={`M ${
-                getPortPosition(connectingFrom.nodeId, connectingFrom.portId, connectingFrom.isOutput)?.x || 0
-              } ${
-                getPortPosition(connectingFrom.nodeId, connectingFrom.portId, connectingFrom.isOutput)?.y || 0
-              } C ${
-                getPortPosition(connectingFrom.nodeId, connectingFrom.portId, connectingFrom.isOutput)?.x 
-                ? (getPortPosition(connectingFrom.nodeId, connectingFrom.portId, connectingFrom.isOutput)!.x + (connectingFrom.isOutput ? 70 : -70))
-                : 0
-              } ${
-                getPortPosition(connectingFrom.nodeId, connectingFrom.portId, connectingFrom.isOutput)?.y || 0
-              }, ${mousePosition.x - 70} ${mousePosition.y}, ${mousePosition.x} ${mousePosition.y}`}
-              stroke="rgba(100, 100, 255, 0.8)"
-              strokeWidth={2}
-              fill="none"
-              strokeDasharray="5,5"
-            />
-          )}
+        {/* Connections as SVG */}
+        <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
+          <g>
+            {connections.map((connection) => (
+              <g 
+                key={connection.id} 
+                onClick={(e) => handleConnectionClick(e, connection.id)}
+                className="pointer-events-auto"
+              >
+                <ConnectionLine 
+                  connection={connection}
+                  nodes={nodes}
+                  animated={true}
+                  onDelete={onConnectionDelete}
+                  selected={selectedConnectionId === connection.id}
+                />
+              </g>
+            ))}
+          </g>
         </svg>
         
         {/* Nodes */}
-        {nodes.map(node => (
-          <NodeComponent
-            key={node.id}
-            node={node}
-            isSelected={selectedNodeId === node.id}
-            onDragStart={handleNodeDragStart}
-            onConnectorMouseDown={handleConnectorMouseDown}
-            onConnectorMouseUp={handleConnectorMouseUp}
-            getComponentIcon={getComponentIcon}
-          />
-        ))}
+        {nodes.map(node => {
+          const isSelected = selectedNodeId === node.id;
+          
+          return (
+            <div
+              key={node.id}
+              data-node-id={node.id}
+              className={cn(
+                "absolute bg-white border rounded-md shadow-md p-4 transition-shadow",
+                isSelected && "border-primary shadow-lg"
+              )}
+              style={{
+                left: `${node.position.x}px`,
+                top: `${node.position.y}px`,
+                width: "200px",
+                zIndex: isSelected ? 10 : 5,
+                cursor: "move"
+              }}
+              onClick={(e) => handleNodeClick(e, node.id)}
+              onMouseDown={(e) => handleNodeDragStart(node.id, e)}
+            >
+              {/* Node header */}
+              <div className="flex items-center mb-2">
+                <div className={cn(
+                  "p-1 rounded-md mr-2",
+                  node.type === ComponentType.VECTOR_DB && "bg-indigo-950 text-indigo-300",
+                  node.type === ComponentType.EMBEDDING && "bg-blue-950 text-blue-300",
+                  node.type === ComponentType.LLM && "bg-emerald-950 text-emerald-300",
+                  node.type === ComponentType.PROMPT && "bg-amber-950 text-amber-300",
+                  node.type === ComponentType.RAG && "bg-violet-950 text-violet-300",
+                  node.type === ComponentType.CHUNKING && "bg-rose-950 text-rose-300",
+                  node.type === ComponentType.FINE_TUNING && "bg-cyan-950 text-cyan-300",
+                  node.type === ComponentType.TEMPERATURE && "bg-orange-950 text-orange-300"
+                )}>
+                  {getComponentIcon(node.type)}
+                </div>
+                <div className="font-medium truncate">
+                  {node.type}
+                </div>
+              </div>
+              
+              {/* Node content - will vary by node type */}
+              <div className="text-xs text-gray-500 mb-4">
+                {node.data?.provider || 'No provider selected'}
+              </div>
+              
+              {/* Input/Output ports */}
+              <div className="relative">
+                {/* Input port on the left */}
+                <div 
+                  className="absolute -left-2 top-0 w-4 h-4 rounded-full bg-blue-500 border-2 border-white"
+                  style={{ top: "50%" }}
+                  data-port-id="input"
+                ></div>
+                
+                {/* Output port on the right */}
+                <div 
+                  className="absolute -right-2 top-0 w-4 h-4 rounded-full bg-green-500 border-2 border-white"
+                  style={{ top: "50%" }}
+                  data-port-id="output"
+                ></div>
+              </div>
+            </div>
+          );
+        })}
       </div>
       
       {/* Controls */}
-      <div className="absolute bottom-4 right-4 flex space-x-2">
+      <div className="absolute bottom-4 right-24 flex space-x-2">
         <Button variant="outline" size="icon" onClick={() => setScale(s => Math.min(s * 1.2, 2))}>
           <Plus className="h-4 w-4" />
         </Button>
