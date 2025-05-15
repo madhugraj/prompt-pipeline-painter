@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { ComponentType } from '@/lib/pipeline-types';
+import { ComponentType, Position } from '@/lib/pipeline-types';
 import { componentCategories } from '@/lib/pipeline-data';
 import {
   Dialog,
@@ -32,7 +31,7 @@ import { Button } from '@/components/ui/button';
 interface ComponentSelectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onComponentSelect: (type: ComponentType) => void;
+  onComponentSelect: (type: ComponentType, position?: Position) => void;
 }
 
 const ComponentSelectionDialog: React.FC<ComponentSelectionDialogProps> = ({
@@ -88,10 +87,11 @@ const ComponentSelectionDialog: React.FC<ComponentSelectionDialogProps> = ({
     }
   };
 
-  // Handle component creation
+  // Handle component creation with default position
   const handleAddComponent = () => {
     if (selectedComponentType) {
-      onComponentSelect(selectedComponentType);
+      // Use a default position when adding from dialog
+      onComponentSelect(selectedComponentType, { x: 100, y: 100 });
       // Reset selections
       setSelectedComponentType('');
     }
