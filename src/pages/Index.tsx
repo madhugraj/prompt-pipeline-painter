@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -15,7 +14,12 @@ import {
   RAGNode,
   ChunkingNode,
   FineTuningNode,
-  TemperatureNode
+  TemperatureNode,
+  PromptOption,
+  RAGOption,
+  ChunkingOption,
+  FineTuningOption,
+  TemperatureOption
 } from '@/lib/pipeline-types';
 import PipelineCanvas from '@/components/PipelineCanvas';
 import { Button } from '@/components/ui/button';
@@ -104,6 +108,7 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
+            option: 'BasicTemplates' as PromptOption,
             provider: defaultProvider,
             template: 'You are a helpful assistant. {input}'
           }
@@ -116,6 +121,7 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
+            option: 'BasicRAG' as RAGOption,
             provider: defaultProvider,
             retrievalMethod: 'similarity'
           }
@@ -128,6 +134,7 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
+            option: 'FixedSize' as ChunkingOption,
             provider: defaultProvider,
             chunkSize: 1000,
             overlap: 200
@@ -141,6 +148,7 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
+            option: 'LoRA' as FineTuningOption,
             provider: defaultProvider,
             trainingEpochs: 3
           }
@@ -153,6 +161,7 @@ const PipelineBuilder = () => {
           type,
           position,
           data: {
+            option: 'FixedValue' as TemperatureOption,
             provider: defaultProvider,
             value: 0.7
           }
