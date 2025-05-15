@@ -28,12 +28,11 @@ import {
   Thermometer, 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Position } from '@/lib/pipeline-types';
 
 interface ComponentSelectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onComponentSelect: (type: ComponentType, position: Position) => void;
+  onComponentSelect: (type: ComponentType) => void;
 }
 
 const ComponentSelectionDialog: React.FC<ComponentSelectionDialogProps> = ({
@@ -42,7 +41,6 @@ const ComponentSelectionDialog: React.FC<ComponentSelectionDialogProps> = ({
   onComponentSelect,
 }) => {
   const [selectedComponentType, setSelectedComponentType] = useState<ComponentType | ''>('');
-  const [selectedProvider, setSelectedProvider] = useState<string>('');
   
   const getComponentIcon = (type: ComponentType) => {
     switch (type) {
@@ -90,34 +88,25 @@ const ComponentSelectionDialog: React.FC<ComponentSelectionDialogProps> = ({
     }
   };
 
-  // Filter available providers based on selected component type
-  const availableProviders = selectedComponentType 
-    ? componentCategories.find(cat => cat.type === selectedComponentType)?.providers || []
-    : [];
-
   // Handle component creation
   const handleAddComponent = () => {
     if (selectedComponentType) {
-      // Place the component in the center of the canvas area for visibility
-      onComponentSelect(selectedComponentType, { x: 300, y: 200 });
+      onComponentSelect(selectedComponentType);
       // Reset selections
       setSelectedComponentType('');
-      setSelectedProvider('');
-      onClose();
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {
       setSelectedComponentType('');
-      setSelectedProvider('');
       onClose();
     }}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Component</DialogTitle>
           <DialogDescription>
-            Select a component type and provider to add to your pipeline.
+            Select a component type to add to your pipeline.
           </DialogDescription>
         </DialogHeader>
         
@@ -127,7 +116,6 @@ const ComponentSelectionDialog: React.FC<ComponentSelectionDialogProps> = ({
             <div className="col-span-3">
               <Select value={selectedComponentType} onValueChange={(value) => {
                 setSelectedComponentType(value as ComponentType);
-                setSelectedProvider('');
               }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select component..." />
@@ -147,26 +135,6 @@ const ComponentSelectionDialog: React.FC<ComponentSelectionDialogProps> = ({
               </Select>
             </div>
           </div>
-          
-          {selectedComponentType && availableProviders.length > 0 && (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <div className="text-right text-sm font-medium">Provider:</div>
-              <div className="col-span-3">
-                <Select value={selectedProvider} onValueChange={setSelectedProvider}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select provider..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableProviders.map((provider) => (
-                      <SelectItem key={provider.id} value={provider.id}>
-                        {provider.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
         </div>
         
         <DialogFooter>
